@@ -41,7 +41,7 @@ def load_directory(directory):
             files[name] = []
             for filename in listdir(subpath):
                 # Load raw fasta files
-                if filename.endswith(".fa") or filename.endswith(".fasta"):
+                if filename.endswith(".fa") or filename.endswith(".fasta") or filename.endswith(".fna"):
                     with open(path.join(subpath, filename)) as fp:
                         files[name] += load_fasta(fp)
                 # Load gzipped fasta files
@@ -54,5 +54,5 @@ def load_directory(directory):
 
 
 if __name__ == "__main__":
-    files = load_directory("data")
+    files = load_directory("databis")
     print(len(files))

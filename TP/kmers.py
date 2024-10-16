@@ -1,3 +1,12 @@
+import heapq
+
+def xorshift64(x) :
+    
+    x ^= (x << 13) & 0xFFFFFFFFFFFFFFFF  # Masque pour garantir un débordement en 64 bits
+    x ^= (x >> 7)
+    x ^= (x << 17) & 0xFFFFFFFFFFFFFFFF  # Masque pour garantir un débordement en 64 bits
+    
+    return x
 
 def kmer2str(val, k):
     """ Transform a kmer integer into a its string representation
@@ -14,73 +23,68 @@ def kmer2str(val, k):
     str_val.reverse()
     return "".join(str_val)
 
-def encode_nuc(nuc):
-    """ Transform a nucleotide character into its integer representation
-    :param str nuc: A character representing a nucleotide
-    :return int: The nucleotide integer formatted
+
+def encode_nucl(nucl):
+    """ Encode a nucleotide into a 2-bit integer
+    :param str nucl: The nucleotide to encode
+    :return (int, int): The encoded nucleotide and its reverse complement
     """
-    letters = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
-    return letters[nuc]
+    encoded = (ord(nucl) >> 1) & 0b11 # Extract the two bits of the ascii code that represent the nucleotide
+    rencoded = (encoded + 2) & 0b11 # Complement encoding with bit tricks. Avoid slow if statement.
 
+    return xorshift64(encoded), xorshift64(rencoded)
 
-def encode_kmer(seq, k):
-    """ Transform a kmer string into its integer representation and its reverse complement.
-    :param str seq: A string representation of a kmer
-    :param int k: The number of nucleotides involved in the kmer.
-    :return int : The integer representations of the kmer and its reverse complement.
-    """
-    kmer = 0
-    kmer_r = 0
-    
-    for i in range(k):
-        nuc = seq[i]   
-        kmer <<= 2 
-        kmer |= encode_nuc(nuc)  
-    
-    return kmer
-
-
-def reverse_kmer(kmer, k):
-    """Reverse the k-mer by reversing its bits, as if it represents the reverse complement
-    of the k-mer.
-    :param int kmer: The k-mer encoded as an integer
-    :param int k: The length of the k-mer
-    :return int: The reverse complement k-mer as an integer
-    """
-    reverse = 0
-
-    for _ in range(k):
-        reverse <<= 2
-        reverse |= (~kmer & 3)   # ~kmer is the reverse of kmer, and 3 is the mask for 2 bits (where 01 is 10 and 00 is 11)
-        kmer >>= 2
-    
-    return reverse
 
 def stream_kmers(seq, k):
+    # Initialize the kmer and its reverse complement
+    kmer = 0
+    rkmer = 0
 
-    
-    mask = (1<<(2*(k-1)))-1 
-    kmer_d = encode_kmer(seq, k)
-    kmer_r = reverse_kmer(kmer_d, k)
-    kmer = min(kmer_d, kmer_r)
-    for i in range (len(seq)-(k)):
-        yield kmer
-        kmer_d&=mask
-        kmer_d <<=2
-        kmer_d |= encode_nuc(seq[i+k])
-        kmer_r = reverse_kmer(kmer_d, k)
-        kmer = min(kmer_d, kmer_r)
-       
-    yield kmer
+    # Add the first k-1 nucleotides to the first kmer and its reverse complement
+    for i in range(k-1):
+        nucl, rnucl = encode_nucl(seq[i])
+        kmer |= nucl << (2*(k-2-i))
+        rkmer |= rnucl << (2*(i+1))
+
+    mask = (1 << (2*(k-1))) - 1
+
+    # Yield the kmers
+    for i in range(k-1, len(seq)):
+
+        
+        nucl, rnucl = encode_nucl(seq[i])
+        # Remove the leftmost nucleotide from the kmer 
+        kmer &= mask
+        # Shift the kmer to make space for the new nucleotide
+        kmer <<= 2
+        # Add the new nucleotide to the kmer
+        kmer |= nucl
+        # Make space for the new nucleotide in the reverse kmer (remove the rightmost nucleotide by side effect)
+        rkmer >>= 2
+        # Add the new nucleotide to the reverse kmer
+        rkmer |= rnucl << (2*(k-1))
+        
+        yield min(kmer, rkmer)
 
 
-def create_index(seq, k):
-    index = {}
+def filter_smallest(seq, k, s):
+    heap = []
+    heapq.heapify(heap)
+
     for kmer in stream_kmers(seq, k):
+        if len(heap) < s:
+            heapq.heappush(heap, -kmer)  
+        else:
+            if kmer < -heap[0]:
+                heapq.heapreplace(heap, -kmer)
+
+    return [-x for x in heap]
+
+def create_index(seq, k, s):
+    index = {}
+    for kmer in filter_smallest(seq, k, s):
         if kmer in index:
             index[kmer] += 1
         else:
             index[kmer] = 1
     return index
-    
-
