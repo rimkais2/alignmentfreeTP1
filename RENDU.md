@@ -18,15 +18,14 @@ Le fichier kmers.py contient les fonction necessaire pour calculer lire les sequ
 
 kmer2str : transforme les kmer de entiers en chaine de caratére 
 
-encode_nuc : retrourne la valeur en chiffre d'acide nucléique
-
-encode_nuc_r : retourne le complémentaire de l'acide nucléique en chiffre
-
-encode_kmer : calcule la valeur en entier d'un kmer et retourne la plus petite valeur entre le kmer et son complémentaire
-
-reverse kmer : retourne le complémentaire d'un kmer
+encode_nucl : retrourne la valeur en chiffre d'acide nucléique
 
 strem_kmer : calcul tout les kmer d'une seqence d'ADN 
+
+filter_smallest : permet de faire un sketch sur tout les kmer de chaque sequence on ne gradant qu'un nombre de kmer choisi de taille s en utilisant la methode bottom minhash on ne garde que les s plus petites valeurs de kmer apres la fonction Hach (xorshift64)
+
+create_index : cree un dictionnaire a partir contenant les kmer choisi ansi que la frequence de leur présence dans la liste 
+
 
 
 ### main
